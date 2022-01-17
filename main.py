@@ -1,7 +1,8 @@
 import pygame
 import math
 from utils import resize_img
-WIN = pygame.display.set_mode((500, 500))
+WIN = pygame.display.set_mode((720, 400), -200)
+pygame.display.set_caption("2D Shooter!")
 p_width = 20
 p_height = 40
 player_img = resize_img(pygame.image.load("Player.png"), p_width, p_height)
@@ -10,7 +11,13 @@ level_img = resize_img(pygame.image.load("Level1.png"), 2000, 600)
 level_mask = pygame.mask.from_surface(level_img)
 bullet_img = resize_img(pygame.image.load("Bullets.png"), 4, 4)
 bullet_mask = pygame.mask.from_surface(bullet_img)
-current_gun = resize_img(pygame.image.load("Weapon 1.png"), 45, 45)
+target_img = resize_img(pygame.image.load("Target.png"), 30, 40)
+target_mask = pygame.mask.from_surface(target_img)
+current_gun = resize_img(pygame.image.load("Weapon_1.png"), 45, 45)
+target_place = [(1885, 200), (1885, 250), (1885, 300), (1885, 350)]
+bullet_masks = []
+alive_targets = []
+hit_targets = []
 run = True
 Plyr_X = 200
 Plyr_Y = 200
@@ -21,6 +28,8 @@ time_count = 0
 scroll_x = 0
 scroll_y = 0
 bullet_wait = 7
+level = 0
+repeat = 0
 
 
 class Player:
@@ -31,6 +40,7 @@ class Player:
         self.y = Plyr_Y
         self.VelX = 0
         self.VelY = 0
+        self.jump_height = 15
 
     def move_left(self):
         self.VelX -= 1
@@ -39,14 +49,14 @@ class Player:
         self.VelX += 1
 
     def jump(self):
-        self.VelY = -10
+        self.VelY -= self.jump_height
 
     def move_x(self):
         self.VelX = (self.VelX * .9)
         self.x += self.VelX
 
     def move_y(self):
-        self.VelY += .1
+        self.VelY += .6
         self.y += self.VelY
 
     def collide_x(self):
@@ -79,9 +89,10 @@ class Bullets:
     def __init__(self):
         global Plyr_X, Plyr_Y
         global mx, my
+        global bullet_masks
         self.X = Plyr_X
         self.Y = Plyr_Y
-        self.dir = math.atan2(Plyr_X - mx + scroll_x, Plyr_Y - my + scroll_y)
+        self.dir = math.atan2(Plyr_X - mx + scroll_x + 10, Plyr_Y - my + scroll_y + 15)
         self.vx = math.sin(self.dir) * -1
         self.vy = math.cos(self.dir) * -1
         self.img = bullet_img
@@ -89,15 +100,20 @@ class Bullets:
         self.delete = 0
         self.rotated = 0
         self.place = 0
+        self.item = (self.mask, int(self.X), int(self.Y))
+        bullet_masks.append((self.mask, int(self.X), int(self.Y)))
 
     def move(self):
         global bullet_mask
         global level_mask
-        self.X += self.vx * 10
-        self.Y += self.vy * 10
+        global bullet_masks
+        self.X += self.vx * 7
+        self.Y += self.vy * 7
         self.delete += 1
-        bullet_mask = pygame.mask.from_surface(self.img)
-        poi = level_mask.overlap(bullet_mask, (self.X, self.Y))
+        poi = level_mask.overlap(self.mask, (self.X + 5, self.Y + 15))
+        part = bullet_masks.index(self.item)
+        bullet_masks[part] = (self.mask, int(self.X), int(self.Y))
+        self.item = (self.mask, int(self.X), int(self.Y))
         if poi:
             self.delete = 100
         return self.delete
@@ -122,22 +138,63 @@ class Gun:
         else:
             self.weapon = pygame.transform.flip(current_gun, True, False)
 
-        self.dir = math.atan2(Plyr_X - mx + scroll_x, Plyr_Y - my + scroll_y)
+        self.dir = math.atan2(Plyr_X - mx + scroll_x + 10, Plyr_Y - my + scroll_y + 15)
         self.rotated = pygame.transform.rotate(self.weapon, self.dir * (180 / 3.14))
         self.place = Plyr_X - int(self.rotated.get_width() / 2) + 10, Plyr_Y - int(self.rotated.get_height() / 2) + 15
         WIN.blit(self.rotated, (self.place[0] + scroll_x, self.place[1] + scroll_y))
 
 
+class Targets:
+    def __init__(self):
+        self.x = 0
+        self.y = 0
+        self.img = target_img
+        self.mask = target_mask
+
+    def draw_target(self, place):
+        WIN.blit(self.img, (place[0] + scroll_x, place[1] + scroll_y))
+        self.x = place[0]
+        self.y = place[1]
+
+    def collision(self):
+        for p in bullet_masks:
+            poi = p[0].overlap(self.mask, (self.x - p[1] - 10, self.y - p[2] - 15))
+            if poi:
+                return 1
+
+
+def generate_targets():
+    global target_place
+    global repeat
+    repeat = 0
+    for j in target_place:
+        alive_targets.append(Targets())
+        alive_targets[repeat].draw_target(j)
+        repeat += 1
+
+
 Player = Player()
 Gun = Gun()
+
+generate_targets()
 
 while run:
     keys = pygame.key.get_pressed()
     pygame.time.delay(10)
-    WIN.fill((20, 10, 20))
+    WIN.fill((0, 0, 20))
     WIN.blit(level_img, (scroll_x, scroll_y))
     mx, my = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed(3)
+
+    # This is to draw the targets and to delete them when their hit
+    repeat = 0
+    for i in alive_targets:
+        i.draw_target(target_place[repeat])
+        repeat += 1
+    for i in alive_targets:
+        if i.collision():
+            target_place.pop(alive_targets.index(i))
+            alive_targets.remove(i)
 
     Player.draw_player(WIN)
 
@@ -166,11 +223,14 @@ while run:
         bullet_list.append(())
         bullet_list[len(bullet_list) - 1] = Bullets()
 
+    repeat = 0
     for i in bullet_list:
         bullet = i
         bullet.draw()
         if bullet.move() >= 100:
+            bullet_masks.remove(bullet_masks[repeat])
             bullet_list.remove(i)
+        repeat += 1
 
     Gun.draw_gun()
 
