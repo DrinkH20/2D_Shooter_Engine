@@ -90,8 +90,8 @@ class Bullets:
         global Plyr_X, Plyr_Y
         global mx, my
         global bullet_masks
-        self.X = Plyr_X
-        self.Y = Plyr_Y
+        self.X = round(Plyr_X)
+        self.Y = round(Plyr_Y)
         self.dir = math.atan2(Plyr_X - mx + scroll_x + 10, Plyr_Y - my + scroll_y + 15)
         self.vx = math.sin(self.dir) * -1
         self.vy = math.cos(self.dir) * -1
@@ -100,8 +100,9 @@ class Bullets:
         self.delete = 0
         self.rotated = 0
         self.place = 0
-        self.item = (self.mask, int(self.X), int(self.Y))
-        bullet_masks.append((self.mask, int(self.X), int(self.Y)))
+        self.item = (self.mask, round(self.X), round(self.Y))
+        self.poi = 0
+        bullet_masks.append(self.item)
 
     def move(self):
         global bullet_mask
@@ -109,20 +110,25 @@ class Bullets:
         global bullet_masks
         self.X += self.vx * 7
         self.Y += self.vy * 7
+        self.poi = level_mask.overlap(self.mask, (self.X + 5, self.Y + 15))
+
+        # This is a failsafe just in case the code glitches for some reason
+        if bullet_masks.__contains__(self.item):
+            part = bullet_masks.index(self.item)
+            self.item = (self.mask, round(self.X), round(self.Y))
+            bullet_masks[part] = self.item
+
         self.delete += 1
-        poi = level_mask.overlap(self.mask, (self.X + 5, self.Y + 15))
-        part = bullet_masks.index(self.item)
-        bullet_masks[part] = (self.mask, int(self.X), int(self.Y))
-        self.item = (self.mask, int(self.X), int(self.Y))
-        if poi:
-            self.delete = 100
+        if self.poi:
+            self.delete = 1000
+            self.item = ""
         return self.delete
 
     def draw(self):
         if self.delete > 2:
             self.rotated = pygame.transform.rotate(self.img, self.dir * (180 / 3.14))
-            self.place = self.X-int(self.rotated.get_width()/2)+10, self.Y-int(self.rotated.get_height() / 2)+15
-            WIN.blit(self.rotated, (self.place[0] + scroll_x + (VelX * 2), self.place[1] + scroll_y + (VelY * 2)))
+            self.place = self.X-round(self.rotated.get_width()/2)+10, self.Y-round(self.rotated.get_height() / 2)+15
+            WIN.blit(self.rotated, (self.place[0] + scroll_x, self.place[1] + scroll_y))
 
 
 class Gun:
@@ -220,17 +226,17 @@ while run:
 
     if click[0] and time_count > bullet_wait:
         time_count = 0
-        bullet_list.append(())
-        bullet_list[len(bullet_list) - 1] = Bullets()
+        bullet_list.append(Bullets())
 
     repeat = 0
     for i in bullet_list:
         bullet = i
         bullet.draw()
-        if bullet.move() >= 100:
+        if bullet.move() > 100:
             bullet_masks.remove(bullet_masks[repeat])
-            bullet_list.remove(i)
-        repeat += 1
+            bullet_list.remove(bullet_list[repeat])
+        else:
+            repeat += 1
 
     Gun.draw_gun()
 
