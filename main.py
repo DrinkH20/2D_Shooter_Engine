@@ -16,7 +16,7 @@ target_mask = pygame.mask.from_surface(target_img)
 current_gun = resize_img(pygame.image.load("Weapon_1.png"), 45, 45)
 level = 0
 Target_Places = [[(1895, 200), (1895, 250), (1895, 300), (1895, 350)],
-                 [(1000, 235), (1050, 235), (1100, 235), (1150, 235)],
+                 [(850, 235), (950, 235), (1050, 235), (1150, 235)],
                  [(1225, 50), (1225, 100), (1225, 150), (1225, 200)]]
 Level_Targets = Target_Places[level]
 bullet_masks = []
@@ -271,12 +271,11 @@ while run:
     scroll_x -= (Plyr_X + scroll_x - 250) * .1
     scroll_y -= (Plyr_Y + scroll_y - 250) * .1
 
-    if len(alive_targets) == 0:
+    if len(alive_targets) == 0 and level < 2:
         level += 1
         load_everything()
         generate_targets()
         Player.__init__()
-
 
     pygame.display.update()
     for event in pygame.event.get():
