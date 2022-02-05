@@ -1,6 +1,6 @@
 import pygame
 import math
-from utils import resize_img
+from utils import resize_img, draw_img, scale_img
 WIN = pygame.display.set_mode((720, 400), -200)
 pygame.display.set_caption("2D Shooter!")
 p_width = 20
@@ -33,6 +33,7 @@ scroll_x = 0
 scroll_y = 0
 bullet_wait = 7
 repeat = 0
+zom = 1
 
 
 def load_everything():
@@ -44,11 +45,12 @@ def load_everything():
     global Plyr_Y
     global VelX
     global VelY
-    print(level)
+    global level_img_img
     Level_Targets = Target_Places[level]
     name = ("Level" + str(level + 1) + ".png")
     level_img = resize_img(pygame.image.load(name), 2000, 600)
-    level_mask = pygame.mask.from_surface(level_img)
+    level_img_img = scale_img(level_img, zom)
+    level_mask = pygame.mask.from_surface(level_img_img)
     Plyr_X = 200
     Plyr_Y = 200
     VelX = 0
@@ -57,7 +59,7 @@ def load_everything():
 
 class Player:
     def __init__(self):
-        self.img = player_img
+        self.img = scale_img(player_img, zom)
         self.mask = player_mask
         self.x = Plyr_X
         self.y = Plyr_Y
@@ -99,13 +101,23 @@ class Player:
         VelY = self.VelY
 
     def draw_player(self, window):
-        window.blit(self.img, (self.x + scroll_x, self.y + scroll_y))
+        self.img = scale_img(player_img, zom)
+        self.mask = player_mask
+        # window.blit(self.img, (self.x + scroll_x, self.y + scroll_y))
+        draw_img(window, self.img, self.x, self.y, scroll_x, scroll_y, zom)
 
     def colliding(self, offset_y=0):
         global player_mask
         self.mask = pygame.mask.from_surface(self.img)
-        poi = level_mask.overlap(self.mask, (self.x, self.y + offset_y))
+        poi = level_mask.overlap(self.mask, (int(self.x / zom), self.y / zom + offset_y))
         return poi
+
+    def move_up(self):
+        self.y -= 1
+
+    def half_width(self):
+        self.img = scale_img(player_img, zom)
+        return self.img.get_width()/2
 
 
 class Bullets:
@@ -115,10 +127,10 @@ class Bullets:
         global bullet_masks
         self.X = round(Plyr_X + (VelX * 2))
         self.Y = round(Plyr_Y + (VelY * 2))
-        self.dir = math.atan2(Plyr_X - mx + scroll_x + 10, Plyr_Y - my + scroll_y + 15)
+        self.dir = math.atan2((Plyr_X + scroll_x + 10) / zom - mx, (Plyr_Y + scroll_y + 14) / zom - my)
         self.vx = math.sin(self.dir) * -1
         self.vy = math.cos(self.dir) * -1
-        self.img = bullet_img
+        self.img = scale_img(bullet_img, zom)
         self.mask = bullet_mask
         self.delete = 0
         self.rotated = 0
@@ -133,7 +145,7 @@ class Bullets:
         global bullet_masks
         self.X += self.vx * 10
         self.Y += self.vy * 10
-        self.poi = level_mask.overlap(self.mask, (self.X + 5, self.Y + 15))
+        self.poi = level_mask.overlap(self.mask, (int((self.X + 5) / zom), (self.Y + 15) / zom))
 
         # This is a failsafe just in case the code glitches for some reason
         if bullet_masks.__contains__(self.item):
@@ -149,39 +161,47 @@ class Bullets:
 
     def draw(self):
         if self.delete > 2:
+            self.img = scale_img(bullet_img, zom)
+            self.mask = bullet_mask
             self.rotated = pygame.transform.rotate(self.img, self.dir * (180 / 3.14))
-            self.place = self.X-round(self.rotated.get_width()/2)+10, self.Y-round(self.rotated.get_height() / 2)+15
-            WIN.blit(self.rotated, (self.place[0] + scroll_x, self.place[1] + scroll_y))
+            self.place = self.X-(self.rotated.get_width()/2)+10, self.Y-(self.rotated.get_height() / 2)+15
+            # WIN.blit(self.rotated, (self.place[0] + scroll_x, self.place[1] + scroll_y))
+            draw_img(WIN, self.rotated, self.place[0], self.place[1], scroll_x, scroll_y, zom)
 
 
 class Gun:
     def __init__(self):
-        self.weapon = current_gun
+        self.weapon = scale_img(current_gun, zom)
         self.dir = 0
         self.place = 0
         self.rotated = 0
 
     def draw_gun(self):
+        self.weapon = scale_img(current_gun, zom)
         if abs(self.dir) != self.dir:
-            self.weapon = current_gun
+            self.weapon = scale_img(current_gun, zom)
         else:
-            self.weapon = pygame.transform.flip(current_gun, True, False)
+            self.weapon = pygame.transform.flip(scale_img(current_gun, zom), True, False)
 
-        self.dir = math.atan2(Plyr_X - mx + scroll_x + 10, Plyr_Y - my + scroll_y + 15)
+        self.dir = math.atan2((Plyr_X + scroll_x + 10) / zom - mx, (Plyr_Y + scroll_y + 15) / zom - my)
         self.rotated = pygame.transform.rotate(self.weapon, self.dir * (180 / 3.14))
-        self.place = Plyr_X - int(self.rotated.get_width() / 2) + 10, Plyr_Y - int(self.rotated.get_height() / 2) + 15
-        WIN.blit(self.rotated, (self.place[0] + scroll_x, self.place[1] + scroll_y))
+        self.place = ((Plyr_X + 10) - ((self.rotated.get_width()/2) * zom)), ((Plyr_Y + 15) - ((self.rotated.get_height() / 2) * zom))
+        # WIN.blit(self.rotated, (self.place[0] + scroll_x, self.place[1] + scroll_y))
+        draw_img(WIN, self.rotated, self.place[0], self.place[1], scroll_x, scroll_y, zom)
 
 
 class Targets:
     def __init__(self):
         self.x = 0
         self.y = 0
-        self.img = target_img
+        self.img = scale_img(target_img, zom)
         self.mask = target_mask
 
     def draw_target(self, place):
-        WIN.blit(self.img, (place[0] + scroll_x, place[1] + scroll_y))
+        self.img = scale_img(target_img, zom)
+        self.mask = target_mask
+        # WIN.blit(self.img, (place[0] + scroll_x, place[1] + scroll_y))
+        draw_img(WIN, self.img, place[0], place[1], scroll_x, scroll_y, zom)
         self.x = place[0]
         self.y = place[1]
 
@@ -202,8 +222,8 @@ def generate_targets():
         repeat += 1
 
 
-Player = Player()
-Gun = Gun()
+player = Player()
+gun = Gun()
 
 generate_targets()
 
@@ -224,31 +244,35 @@ while run:
             Level_Targets.pop(alive_targets.index(i))
             alive_targets.remove(i)
 
-    WIN.blit(level_img, (scroll_x, scroll_y))
+    # WIN.blit(level_img, (scroll_x, scroll_y))
+    level_img_img = scale_img(level_img, zom)
+    level_mask = pygame.mask.from_surface(level_img_img)
+    draw_img(WIN, level_img_img, scroll_x, scroll_y, 0, 0, zom)
+
     mx, my = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed(3)
 
-    Player.draw_player(WIN)
+    player.draw_player(WIN)
 
-    Player.move_y()
+    player.move_y()
 
-    if Player.colliding():
-        Player.collide_y()
-        if Player.colliding(1):
+    if player.colliding():
+        player.collide_y()
+        if player.colliding(1):
             if keys[pygame.K_UP]:
-                Player.jump()
+                player.jump()
 
-    Player.move_x()
+    player.move_x()
 
-    if Player.colliding():
-        Player.collide_x()
+    if player.colliding():
+        player.collide_x()
 
     if keys[pygame.K_LEFT]:
-        Player.move_left()
+        player.move_left()
     if keys[pygame.K_RIGHT]:
-        Player.move_right()
+        player.move_right()
 
-    Player.set_vars()
+    player.set_vars()
 
     if click[0] and time_count > bullet_wait:
         time_count = 0
@@ -264,18 +288,29 @@ while run:
         else:
             repeat += 1
 
-    Gun.draw_gun()
+    gun.draw_gun()
 
     time_count += 1
 
-    scroll_x -= (Plyr_X + scroll_x - 250) * .1
-    scroll_y -= (Plyr_Y + scroll_y - 250) * .1
+    scroll_x -= (Plyr_X + scroll_x - 250 * zom) * .1
+    scroll_y -= (Plyr_Y + scroll_y - 250 * zom) * .1
 
     if len(alive_targets) == 0 and level < 2:
         level += 1
         load_everything()
         generate_targets()
-        Player.__init__()
+        player.__init__()
+
+    if keys[pygame.K_x]:
+        zom += .05
+        player.move_up()
+    if keys[pygame.K_z]:
+        zom -= .05
+        player.move_up()
+    if zom > 3:
+        zom = 3
+    elif zom < .5:
+        zom = .5
 
     pygame.display.update()
     for event in pygame.event.get():
