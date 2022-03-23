@@ -185,7 +185,7 @@ class Gun:
 
         self.dir = math.atan2((Plyr_X + scroll_x + 10) / zom - mx, (Plyr_Y + scroll_y + 15) / zom - my)
         self.rotated = pygame.transform.rotate(self.weapon, self.dir * (180 / 3.14))
-        self.place = ((Plyr_X + 10) - ((self.rotated.get_width()/2) * zom)), ((Plyr_Y + 15) - ((self.rotated.get_height() / 2) * zom))
+        self.place = ((Plyr_X+10)-((self.rotated.get_width()/2)*zom)), ((Plyr_Y+15)-((self.rotated.get_height()/2)*zom))
         # WIN.blit(self.rotated, (self.place[0] + scroll_x, self.place[1] + scroll_y))
         draw_img(WIN, self.rotated, self.place[0], self.place[1], scroll_x, scroll_y, zom)
 
